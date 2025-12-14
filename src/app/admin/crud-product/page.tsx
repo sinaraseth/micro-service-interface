@@ -2,14 +2,14 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Save, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { mockProducts, ProductCategory, getProductById } from "@/hooks/mock-data"
 
-export default function CrudProductPage() {
+function CrudProductForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editId = searchParams.get("edit")
@@ -285,5 +285,13 @@ export default function CrudProductPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CrudProductPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CrudProductForm />
+    </Suspense>
   )
 }
