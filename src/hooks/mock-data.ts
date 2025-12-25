@@ -79,7 +79,7 @@ export const mockProducts: Product[] = [
     description: "Elegant brass pendant light fixture",
     price: 179,
     category: ProductCategory.LIGHTING,
-    image: "/placeholder.svg",
+    image: "/images (3).jpg",
     rating: 4,
     stock: 23,
     sku: "LGT-PEND-004",
@@ -158,8 +158,6 @@ export const mockStockHistory: StockHistoryEntry[] = [
   { id: 1, type: "ADD", quantity: 50, date: "2024-12-10", performedBy: "Admin", notes: "Initial stock" },
   { id: 2, type: "DEDUCT", quantity: -5, date: "2024-12-09", performedBy: "System", notes: "Order #1234" },
   { id: 3, type: "ADD", quantity: 10, date: "2024-12-08", performedBy: "Admin", notes: "Restock" },
-  { id: 4, type: "DEDUCT", quantity: -8, date: "2024-12-07", performedBy: "System", notes: "Order #1235" },
-  { id: 5, type: "DEDUCT", quantity: -2, date: "2024-12-06", performedBy: "System", notes: "Order #1236" },
 ]
 
 // Helper function to get product by ID
