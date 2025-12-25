@@ -1,32 +1,152 @@
-// Product details (Product Service)
+"use client";
 
-"use client"
-
-import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft, Edit2, Trash2, Package, TrendingUp, TrendingDown, Clock, Star } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useState } from "react"
-import { mockProducts, mockStockHistory, getProductById } from "@/hooks/mock-data"
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  Edit2,
+  Trash2,
+  Package,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Star,
+  Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ProductService, InventoryService, mapApiProductToLocal } from "@/services/api.config";
 
 export default function AdminProductDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const productId = params["product-id"] as string
+  const params = useParams();
+  const router = useRouter();
+  const productId = params["product-id"] as string;
 
-  const [isEditing, setIsEditing] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [product, setProduct] = useState<any>(null);
+  const [stockHistory, setStockHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAddStockModal, setShowAddStockModal] = useState(false);
+  const [showRemoveStockModal, setShowRemoveStockModal] = useState(false);
+  const [stockAmount, setStockAmount] = useState("");
+  const [processingStock, setProcessingStock] = useState(false);
 
-  // Find the product
-  const product = getProductById(productId)
+  // Fetch product data
+  useEffect(() => {
+    fetchProductData();
+    fetchStockHistory();
+  }, [productId]);
 
-  if (!product) {
+  const fetchProductData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const apiProduct = await ProductService.getProductById(productId);
+      const mappedProduct = mapApiProductToLocal(apiProduct);
+      setProduct(mappedProduct);
+    } catch (err) {
+      console.error("Error fetching product:", err);
+      setError("Failed to load product data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStockHistory = async () => {
+    try {
+      const history = await InventoryService.getStockHistory(productId);
+      setStockHistory(history.data || []);
+    } catch (err) {
+      console.error("Error fetching stock history:", err);
+      // Don't set error state for stock history failure
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await ProductService.deleteProduct(productId);
+      alert("Product deleted successfully!");
+      router.push("/admin");
+    } catch (err) {
+      console.error("Error deleting product:", err);
+      alert("Failed to delete product. Please try again.");
+    }
+  };
+
+  const handleAddStock = async () => {
+    if (!stockAmount || parseInt(stockAmount) <= 0) {
+      alert("Please enter a valid quantity");
+      return;
+    }
+
+    try {
+      setProcessingStock(true);
+      await InventoryService.addStock(productId, parseInt(stockAmount));
+      alert("Stock added successfully!");
+      setShowAddStockModal(false);
+      setStockAmount("");
+      // Refresh product and history
+      await fetchProductData();
+      await fetchStockHistory();
+    } catch (err) {
+      console.error("Error adding stock:", err);
+      alert("Failed to add stock. Please try again.");
+    } finally {
+      setProcessingStock(false);
+    }
+  };
+
+  const handleRemoveStock = async () => {
+    if (!stockAmount || parseInt(stockAmount) <= 0) {
+      alert("Please enter a valid quantity");
+      return;
+    }
+
+    if (product && parseInt(stockAmount) > product.stock) {
+      alert("Cannot remove more stock than available");
+      return;
+    }
+
+    try {
+      setProcessingStock(true);
+      await InventoryService.deductStock(productId, parseInt(stockAmount));
+      alert("Stock removed successfully!");
+      setShowRemoveStockModal(false);
+      setStockAmount("");
+      // Refresh product and history
+      await fetchProductData();
+      await fetchStockHistory();
+    } catch (err) {
+      console.error("Error removing stock:", err);
+      alert("Failed to remove stock. Please try again.");
+    } finally {
+      setProcessingStock(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading product details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h2>
-          <p className="text-gray-600 mb-6">The product you're looking for doesn't exist.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Product Not Found
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {error || "The product you're looking for doesn't exist."}
+          </p>
           <Link href="/admin">
             <Button>
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -35,13 +155,7 @@ export default function AdminProductDetailPage() {
           </Link>
         </div>
       </div>
-    )
-  }
-
-  const handleDelete = () => {
-    // TODO: Implement delete logic
-    console.log("Delete product:", productId)
-    router.push("/admin")
+    );
   }
 
   return (
@@ -58,7 +172,9 @@ export default function AdminProductDetailPage() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {product.name}
+                </h1>
                 <p className="text-sm text-gray-600">SKU: {product.sku}</p>
               </div>
             </div>
@@ -86,16 +202,131 @@ export default function AdminProductDetailPage() {
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Product</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              Delete Product
+            </h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete "{product.name}"? This action cannot be undone.
+              Are you sure you want to delete "{product.name}"? This action
+              cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
                 Cancel
               </Button>
-              <Button className="bg-red-600 hover:bg-red-700" onClick={handleDelete}>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDelete}
+              >
                 Delete Product
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Stock Modal */}
+      {showAddStockModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Add Stock</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity to Add
+                </label>
+                <input
+                  type="number"
+                  value={stockAmount}
+                  onChange={(e) => setStockAmount(e.target.value)}
+                  min="1"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter quantity"
+                  disabled={processingStock}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddStockModal(false);
+                  setStockAmount("");
+                }}
+                disabled={processingStock}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-primary hover:bg-primary-dark text-white"
+                onClick={handleAddStock}
+                disabled={processingStock}
+              >
+                {processingStock ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Stock"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Stock Modal */}
+      {showRemoveStockModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Remove Stock</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity to Remove
+                </label>
+                <input
+                  type="number"
+                  value={stockAmount}
+                  onChange={(e) => setStockAmount(e.target.value)}
+                  min="1"
+                  max={product.stock}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter quantity"
+                  disabled={processingStock}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Available: {product.stock} units
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRemoveStockModal(false);
+                  setStockAmount("");
+                }}
+                disabled={processingStock}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleRemoveStock}
+                disabled={processingStock}
+              >
+                {processingStock ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  "Remove Stock"
+                )}
               </Button>
             </div>
           </div>
@@ -120,38 +351,69 @@ export default function AdminProductDetailPage() {
                 <div>
                   <div className="mb-4">
                     <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
-                      {product.category.charAt(0) + product.category.slice(1).toLowerCase()}
+                      {product.category.charAt(0) +
+                        product.category.slice(1).toLowerCase()}
                     </span>
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-4">${product.price}</h2>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                    ${product.price}
+                  </h2>
                   <div className="flex items-center gap-2 mb-4">
                     <div className="flex items-center">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
-                          className={`w-5 h-5 ${i < product.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
+                          className={`w-5 h-5 ${
+                            i < product.rating
+                              ? "text-yellow-400 fill-yellow-400"
+                              : "text-gray-300"
+                          }`}
                         />
                       ))}
                     </div>
-                    <span className="text-sm text-gray-600">({product.rating}.0)</span>
+                    <span className="text-sm text-gray-600">
+                      ({product.rating}.0)
+                    </span>
                   </div>
-                  <p className="text-gray-700 leading-relaxed mb-6">{product.description}</p>
+                  <p className="text-gray-700 leading-relaxed mb-6">
+                    {product.description}
+                  </p>
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-gray-600">Product ID</span>
-                      <span className="font-medium text-gray-900">{product.id}</span>
+                      <span className="font-medium text-gray-900 text-xs">
+                        {product.id}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-gray-600">SKU</span>
-                      <span className="font-medium text-gray-900">{product.sku}</span>
+                      <span className="font-medium text-gray-900">
+                        {product.sku}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600">Status</span>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded ${
+                          product.isActive
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {product.isActive ? "Active" : "Inactive"}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-gray-600">Created</span>
-                      <span className="font-medium text-gray-900">{product.createdAt}</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(product.createdAt).toLocaleDateString()}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between py-2">
                       <span className="text-gray-600">Last Updated</span>
-                      <span className="font-medium text-gray-900">{product.updatedAt}</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(product.updatedAt).toLocaleDateString()}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -160,33 +422,51 @@ export default function AdminProductDetailPage() {
 
             {/* Stock History */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Stock History</h3>
-              <div className="space-y-3">
-                {mockStockHistory.map((entry) => (
-                  <div key={entry.id} className="flex items-start gap-4 pb-3 border-b border-gray-100 last:border-0">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Stock History
+              </h3>
+              {stockHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {stockHistory.map((entry: any, index: number) => (
                     <div
-                      className={`p-2 rounded-lg ${entry.type === "ADD" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}
+                      key={index}
+                      className="flex items-start gap-4 pb-3 border-b border-gray-100 last:border-0"
                     >
-                      {entry.type === "ADD" ? (
-                        <TrendingUp className="w-5 h-5" />
-                      ) : (
-                        <TrendingDown className="w-5 h-5" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-gray-900">
-                          {entry.type === "ADD" ? "+" : ""}
-                          {entry.quantity} units
-                        </span>
-                        <span className="text-sm text-gray-500">{entry.date}</span>
+                      <div
+                        className={`p-2 rounded-lg ${
+                          entry.type === "ADD" || entry.quantity > 0
+                            ? "bg-green-100 text-green-600"
+                            : "bg-red-100 text-red-600"
+                        }`}
+                      >
+                        {entry.type === "ADD" || entry.quantity > 0 ? (
+                          <TrendingUp className="w-5 h-5" />
+                        ) : (
+                          <TrendingDown className="w-5 h-5" />
+                        )}
                       </div>
-                      <p className="text-sm text-gray-600">{entry.notes}</p>
-                      <p className="text-xs text-gray-500 mt-1">By: {entry.performedBy}</p>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-gray-900">
+                            {entry.quantity > 0 ? "+" : ""}
+                            {entry.quantity} units
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(entry.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          {entry.notes || entry.reason || "Stock adjustment"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  No stock history available
+                </p>
+              )}
             </div>
           </div>
 
@@ -194,11 +474,17 @@ export default function AdminProductDetailPage() {
           <div className="space-y-6">
             {/* Current Stock */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Current Stock</h3>
-              <div className="text-center py-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                Current Stock
+              </h3>
+              <div className="text-center py-4">
                 <div
                   className={`text-5xl font-bold mb-2 ${
-                    product.stock > 20 ? "text-green-600" : product.stock > 10 ? "text-yellow-600" : "text-red-600"
+                    product.stock > 20
+                      ? "text-green-600"
+                      : product.stock > 10
+                      ? "text-yellow-600"
+                      : "text-red-600"
                   }`}
                 >
                   {product.stock}
@@ -206,11 +492,19 @@ export default function AdminProductDetailPage() {
                 <p className="text-gray-600">units available</p>
               </div>
               <div className="flex gap-2 mt-4">
-                <Button className="flex-1" variant="outline">
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => setShowAddStockModal(true)}
+                >
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Add Stock
                 </Button>
-                <Button className="flex-1" variant="outline">
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => setShowRemoveStockModal(true)}
+                >
                   <TrendingDown className="w-4 h-4 mr-2" />
                   Remove
                 </Button>
@@ -219,81 +513,98 @@ export default function AdminProductDetailPage() {
 
             {/* Stock Status */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Stock Status</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Stock Status
+              </h3>
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-600">Stock Level</span>
                     <span
                       className={`text-sm font-semibold ${
-                        product.stock > 20 ? "text-green-600" : product.stock > 10 ? "text-yellow-600" : "text-red-600"
+                        product.stock > 20
+                          ? "text-green-600"
+                          : product.stock > 10
+                          ? "text-yellow-600"
+                          : "text-red-600"
                       }`}
                     >
-                      {product.stock > 20 ? "Good" : product.stock > 10 ? "Low" : "Critical"}
+                      {product.stock > 20
+                        ? "Good"
+                        : product.stock > 10
+                        ? "Low"
+                        : "Critical"}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
-                        product.stock > 20 ? "bg-green-500" : product.stock > 10 ? "bg-yellow-500" : "bg-red-500"
+                        product.stock > 20
+                          ? "bg-green-500"
+                          : product.stock > 10
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
                       }`}
-                      style={{ width: `${Math.min((product.stock / 50) * 100, 100)}%` }}
+                      style={{
+                        width: `${Math.min((product.stock / 50) * 100, 100)}%`,
+                      }}
                     ></div>
                   </div>
                 </div>
                 <div className="pt-4 border-t border-gray-100 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Stock</span>
-                    <span className="font-medium text-gray-900">{product.stock} units</span>
+                    <span className="font-medium text-gray-900">
+                      {product.stock} units
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Reserved</span>
-                    <span className="font-medium text-gray-900">0 units</span>
+                    <span className="text-gray-600">Stock Value</span>
+                    <span className="font-medium text-gray-900">
+                      ${(product.stock * product.price).toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Available</span>
-                    <span className="font-medium text-green-600">{product.stock} units</span>
+                    <span className="font-medium text-green-600">
+                      {product.stock} units
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Quick Stats */}
+            {/* Quick Actions */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Stats</h3>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <Package className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Total Orders</p>
-                    <p className="text-lg font-bold text-gray-900">127</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Total Revenue</p>
-                    <p className="text-lg font-bold text-gray-900">${(product.price * 127).toLocaleString()}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <Clock className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Last Sale</p>
-                    <p className="text-lg font-bold text-gray-900">2 hours ago</p>
-                  </div>
-                </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Quick Actions
+              </h3>
+              <div className="space-y-2">
+                <Link href={`/admin/crud-product?edit=${productId}`} className="block">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit Product Details
+                  </Button>
+                </Link>
+                <Link href="/admin/inventory-stock" className="block">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Package className="w-4 h-4 mr-2" />
+                    View Inventory
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Product
+                </Button>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
