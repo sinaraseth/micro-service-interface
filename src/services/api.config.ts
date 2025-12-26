@@ -1,21 +1,16 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_GATEWAY_URL ||
-  "http://wgss0wws0osco4o48soo4kko.34.87.12.222.sslip.io/api/v1";
+const API_BASE_URL = "/api";
 
 // API Response Types
 export interface ApiProduct {
-  id: string;
+  id: number;
   name: string;
   description: string;
-  price: string;
-  sku: string;
+  price: number;
   stock: number;
-  is_active: number;
+  sku: string;
+  image: string | null;
   created_at: string;
   updated_at: string;
-  image?: string;
-  category?: string;
-  rating?: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -26,10 +21,9 @@ export interface PaginatedResponse<T> {
   last_page: number;
   last_page_url: string;
   links: Array<{
-    active: boolean;
-    label: string;
-    page: number | null;
     url: string | null;
+    label: string;
+    active: boolean;
   }>;
   next_page_url: string | null;
   path: string;
@@ -43,229 +37,134 @@ export interface PaginatedResponse<T> {
 export class ProductService {
   private static baseUrl = `${API_BASE_URL}/products`;
 
-  // Get all products with pagination
-  static async getProducts(
-    page: number = 1
-  ): Promise<PaginatedResponse<ApiProduct>> {
+  static async getProducts(page: number = 1): Promise<PaginatedResponse<ApiProduct>> {
     try {
+      console.log(`Fetching products from: ${this.baseUrl}?page=${page}`);
+
       const response = await fetch(`${this.baseUrl}?page=${page}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
+        cache: "no-store",
       });
 
+      console.log("Response status:", response.status);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
         throw new Error(`Failed to fetch products: ${response.statusText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log("Products data:", data);
+
+      return data;
     } catch (error) {
       console.error("Error fetching products:", error);
       throw error;
     }
   }
 
-  // Get single product by ID
   static async getProductById(id: string): Promise<ApiProduct> {
-    try {
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch product: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.data || data;
-    } catch (error) {
-      console.error("Error fetching product:", error);
-      throw error;
+    const response = await fetch(`${this.baseUrl}/${id}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch product");
     }
+    return response.json();
   }
 
-  // Create new product
-  static async createProduct(productData: {
-    name: string;
-    description: string;
-    price: number;
-    sku: string;
-    stock: number;
-    category?: string;
-    image?: string;
-    rating?: number;
-  }): Promise<ApiProduct> {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(productData),
-      });
+  static async createProduct(data: FormData | any): Promise<ApiProduct> {
+    const isFormData = data instanceof FormData;
+    
+    const response = await fetch(this.baseUrl, {
+      method: "POST",
+      headers: isFormData ? {} : { "Content-Type": "application/json" },
+      body: isFormData ? data : JSON.stringify(data),
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create product: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.data || data;
-    } catch (error) {
-      console.error("Error creating product:", error);
-      throw error;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || "Failed to create product");
     }
+
+    return response.json();
   }
 
-  // Update product
-  static async updateProduct(
-    id: string,
-    productData: Partial<{
-      name: string;
-      description: string;
-      price: number;
-      stock: number;
-      category?: string;
-      image?: string;
-      rating?: number;
-      is_active?: number;
-    }>
-  ): Promise<ApiProduct> {
-    try {
-      console.log("API: Updating product", id, productData);
-
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(productData),
-      });
-
-      const responseText = await response.text();
-      console.log("API: Update response status", response.status);
-      console.log("API: Update response body", responseText);
-
-      if (!response.ok) {
-        let errorData: any = {};
-        try {
-          errorData = JSON.parse(responseText);
-        } catch (e) {
-          // Response is not JSON
-        }
-        throw new Error(
-          errorData.message ||
-            `Failed to update product: ${response.statusText}`
-        );
-      }
-
-      const data = JSON.parse(responseText);
-      return data.data || data;
-    } catch (error) {
-      console.error("Error updating product:", error);
-      throw error;
+  static async updateProduct(id: string, data: FormData | any): Promise<ApiProduct> {
+    const isFormData = data instanceof FormData;
+    
+    // Add _method field for Laravel to handle FormData as PUT
+    if (isFormData) {
+      data.append("_method", "PUT");
     }
+    
+    const response = await fetch(`${this.baseUrl}/${id}`, {
+      method: isFormData ? "POST" : "PUT", // Use POST for FormData
+      headers: isFormData ? {} : { "Content-Type": "application/json" },
+      body: isFormData ? data : JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || "Failed to update product");
+    }
+
+    return response.json();
   }
 
-  // Delete product
   static async deleteProduct(id: string): Promise<void> {
-    try {
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+    const response = await fetch(`${this.baseUrl}/${id}`, {
+      method: "DELETE",
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete product: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error("Error deleting product:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error("Failed to delete product");
     }
   }
 }
 
 // Inventory Service (for stock management)
 export class InventoryService {
-  private static baseUrl = `${API_BASE_URL}/inventory`;
+  private static baseUrl = `${API_BASE_URL}/stock`;
 
-  // Add stock
   static async addStock(productId: string, quantity: number): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/add`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          product_id: productId,
-          quantity,
-        }),
-      });
+    const response = await fetch(`${this.baseUrl}/${productId}/add`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity }),
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to add stock: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error adding stock:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error("Failed to add stock");
     }
+
+    return response.json();
   }
 
-  // Deduct stock
   static async deductStock(productId: string, quantity: number): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/deduct`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          product_id: productId,
-          quantity,
-        }),
-      });
+    const response = await fetch(`${this.baseUrl}/${productId}/remove`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity }),
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to deduct stock: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error deducting stock:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error("Failed to deduct stock");
     }
+
+    return response.json();
   }
 
-  // Get stock history
   static async getStockHistory(productId: string): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/history/${productId}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+    const response = await fetch(`${this.baseUrl}/${productId}/history`);
 
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch stock history: ${response.statusText}`
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error fetching stock history:", error);
-      throw error;
+    if (!response.ok) {
+      return { data: [] };
     }
+
+    return response.json();
   }
 }
 
@@ -273,117 +172,31 @@ export class InventoryService {
 export class OrderService {
   private static baseUrl = `${API_BASE_URL}/orders`;
 
-  // Create order
-  static async createOrder(orderData: {
-    customer_name: string;
-    customer_email: string;
-    items: Array<{
-      product_id: string;
-      quantity: number;
-      price: number;
-    }>;
-    total: number;
-  }): Promise<any> {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(orderData),
-      });
+  static async createOrder(orderData: any): Promise<any> {
+    const response = await fetch(this.baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData),
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create order: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error creating order:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error("Failed to create order");
     }
-  }
 
-  // Get all orders
-  static async getOrders(page: number = 1): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}?page=${page}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch orders: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      throw error;
-    }
-  }
-
-  // Get order by ID
-  static async getOrderById(id: string): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch order: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error fetching order:", error);
-      throw error;
-    }
-  }
-
-  // Update order status
-  static async updateOrderStatus(id: string, status: string): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/${id}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to update order status: ${response.statusText}`
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error updating order status:", error);
-      throw error;
-    }
+    return response.json();
   }
 }
 
 // Helper function to convert API product to local product format
-export const mapApiProductToLocal = (apiProduct: ApiProduct) => {
+export const mapApiProductToLocal = (apiProduct: ApiProduct | any) => {
   return {
-    id: apiProduct.id,
+    id: apiProduct.id.toString(),
     name: apiProduct.name,
-    description: apiProduct.description,
+    description: apiProduct.description || "",
     price: parseFloat(apiProduct.price),
-    sku: apiProduct.sku,
-    stock: apiProduct.stock,
     image: apiProduct.image || "/placeholder.svg",
-    category: apiProduct.category || "FURNITURE",
-    rating: apiProduct.rating || 5,
-    isActive: apiProduct.is_active === 1,
+    stock: apiProduct.stock,
+    sku: apiProduct.sku,
     createdAt: apiProduct.created_at,
     updatedAt: apiProduct.updated_at,
   };
