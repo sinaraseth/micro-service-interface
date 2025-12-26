@@ -3,9 +3,8 @@
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, X, Loader2, Upload, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ProductCategory } from "@/hooks/mock-data";
 import { ProductService } from "@/services/api.config";
 
 function CrudProductForm() {
@@ -16,20 +15,17 @@ function CrudProductForm() {
 
   const [formData, setFormData] = useState({
     name: "",
-    description: "",
     price: "",
-    category: ProductCategory.FURNITURE,
-    image: "",
-    rating: 5,
     stock: 0,
     sku: "",
+    image: "" as string, // Changed to string for base64
   });
 
+  const [imagePreview, setImagePreview] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fetchingProduct, setFetchingProduct] = useState(false);
 
-  // Fetch product data if in edit mode
   useEffect(() => {
     if (isEditMode && editId) {
       fetchProductData(editId);
@@ -45,14 +41,15 @@ function CrudProductForm() {
 
       setFormData({
         name: product.name,
-        description: product.description,
         price: product.price.toString(),
-        category: (product.category as ProductCategory) || ProductCategory.FURNITURE,
-        image: product.image || "",
-        rating: product.rating || 5,
         stock: product.stock,
         sku: product.sku,
+        image: product.image || "",
       });
+
+      if (product.image) {
+        setImagePreview(product.image);
+      }
     } catch (error) {
       console.error("Error fetching product:", error);
       alert("Failed to load product data");
@@ -63,7 +60,7 @@ function CrudProductForm() {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -72,11 +69,38 @@ function CrudProductForm() {
     }
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        setErrors((prev) => ({ ...prev, image: "Please select a valid image file" }));
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({ ...prev, image: "Image size should not exceed 5MB" }));
+        return;
+      }
+
+      setErrors((prev) => ({ ...prev, image: "" }));
+
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setImagePreview(base64String);
+        setFormData((prev) => ({ ...prev, image: base64String }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) newErrors.name = "Product name is required";
-    if (!formData.description.trim()) newErrors.description = "Description is required";
     if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = "Valid price is required";
     if (!isEditMode && !formData.sku.trim()) newErrors.sku = "SKU is required";
     if (formData.stock < 0) newErrors.stock = "Stock cannot be negative";
@@ -94,35 +118,40 @@ function CrudProductForm() {
       setLoading(true);
 
       if (isEditMode && editId) {
-        // Update existing product - DON'T send SKU
-        const updateData = {
+        // For updates
+        const updateData: any = {
           name: formData.name,
-          description: formData.description,
           price: parseFloat(formData.price),
           stock: parseInt(formData.stock.toString()),
-          category: formData.category,
-          image: formData.image || undefined,
-          rating: formData.rating,
-          is_active: 1,
         };
 
-        console.log("Updating product:", editId, updateData);
+        // Include image only if it was changed (starts with data:image)
+        if (formData.image && formData.image.startsWith('data:image')) {
+          updateData.image = formData.image;
+        }
+
+        console.log("Updating product:", editId);
         await ProductService.updateProduct(editId, updateData);
         alert("Product updated successfully!");
       } else {
-        // Create new product - INCLUDE SKU
-        const createData = {
+        // For creation
+        const createData: any = {
           name: formData.name,
-          description: formData.description,
           price: parseFloat(formData.price),
           sku: formData.sku,
           stock: parseInt(formData.stock.toString()),
-          category: formData.category,
-          image: formData.image || undefined,
-          rating: formData.rating,
         };
 
-        console.log("Creating product:", createData);
+        // Include image if present
+        if (formData.image) {
+          createData.image = formData.image;
+        }
+
+        console.log("Creating product with data:", {
+          ...createData,
+          image: createData.image ? `${createData.image.substring(0, 50)}...` : null
+        });
+
         await ProductService.createProduct(createData);
         alert("Product created successfully!");
       }
@@ -131,7 +160,6 @@ function CrudProductForm() {
     } catch (error: any) {
       console.error("Error saving product:", error);
       
-      // Try to get more specific error message
       let errorMessage = `Failed to ${isEditMode ? "update" : "create"} product.`;
       if (error.message) {
         errorMessage += ` ${error.message}`;
@@ -156,7 +184,6 @@ function CrudProductForm() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-6 py-4 md:px-12">
           <div className="flex items-center justify-between">
@@ -180,11 +207,63 @@ function CrudProductForm() {
         </div>
       </header>
 
-      {/* Form */}
       <div className="px-6 py-8 md:px-12">
         <div className="max-w-3xl mx-auto">
           <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="space-y-6">
+              {/* Product Image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Product Image
+                </label>
+                <div className="flex gap-4">
+                  {/* Image Preview */}
+                  <div className="flex-shrink-0">
+                    <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="Product preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="w-12 h-12 text-gray-400" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Upload Button */}
+                  <div className="flex-1 flex flex-col justify-center">
+                    <input
+                      type="file"
+                      id="image"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      disabled={loading}
+                      className="hidden"
+                    />
+                    <label htmlFor="image">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={loading}
+                        onClick={() => document.getElementById("image")?.click()}
+                        className="w-full"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        {imagePreview ? "Change Image" : "Upload Image"}
+                      </Button>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-2">
+                      PNG, JPG, JPEG up to 5MB (will be converted to base64)
+                    </p>
+                    {errors.image && (
+                      <p className="text-sm text-red-600 mt-1">{errors.image}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Product Name */}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -205,68 +284,26 @@ function CrudProductForm() {
                 {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
               </div>
 
-              {/* Description */}
+              {/* Price */}
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                  Description <span className="text-red-500">*</span>
+                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
+                  Price ($) <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
+                <input
+                  type="number"
+                  id="price"
+                  name="price"
+                  value={formData.price}
                   onChange={handleChange}
                   disabled={loading}
-                  rows={4}
+                  step="0.01"
+                  min="0"
                   className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                    errors.description ? "border-red-500" : "border-gray-300"
+                    errors.price ? "border-red-500" : "border-gray-300"
                   }`}
-                  placeholder="Describe your product..."
+                  placeholder="0.00"
                 />
-                {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
-              </div>
-
-              {/* Price & Category */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
-                    Price ($) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="price"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleChange}
-                    disabled={loading}
-                    step="0.01"
-                    min="0"
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                      errors.price ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder="0.00"
-                  />
-                  {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
-                </div>
-
-                <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    disabled={loading}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    {Object.values(ProductCategory).map((category) => (
-                      <option key={category} value={category}>
-                        {category.charAt(0) + category.slice(1).toLowerCase()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
               </div>
 
               {/* SKU & Stock */}
@@ -312,45 +349,6 @@ function CrudProductForm() {
                   />
                   {errors.stock && <p className="mt-1 text-sm text-red-600">{errors.stock}</p>}
                 </div>
-              </div>
-
-              {/* Image URL */}
-              <div>
-                <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-2">
-                  Image URL
-                </label>
-                <input
-                  type="text"
-                  id="image"
-                  name="image"
-                  value={formData.image}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="/images/product.jpg"
-                />
-                <p className="mt-1 text-xs text-gray-500">Optional: Leave empty to use default placeholder</p>
-              </div>
-
-              {/* Rating */}
-              <div>
-                <label htmlFor="rating" className="block text-sm font-medium text-gray-700 mb-2">
-                  Rating
-                </label>
-                <select
-                  id="rating"
-                  name="rating"
-                  value={formData.rating}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  {[1, 2, 3, 4, 5].map((rating) => (
-                    <option key={rating} value={rating}>
-                      {rating} Star{rating > 1 ? "s" : ""}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 

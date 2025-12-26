@@ -10,8 +10,6 @@ import {
   Package,
   TrendingUp,
   TrendingDown,
-  Clock,
-  Star,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,7 +30,6 @@ export default function AdminProductDetailPage() {
   const [stockAmount, setStockAmount] = useState("");
   const [processingStock, setProcessingStock] = useState(false);
 
-  // Fetch product data
   useEffect(() => {
     fetchProductData();
     fetchStockHistory();
@@ -59,7 +56,6 @@ export default function AdminProductDetailPage() {
       setStockHistory(history.data || []);
     } catch (err) {
       console.error("Error fetching stock history:", err);
-      // Don't set error state for stock history failure
     }
   };
 
@@ -86,7 +82,6 @@ export default function AdminProductDetailPage() {
       alert("Stock added successfully!");
       setShowAddStockModal(false);
       setStockAmount("");
-      // Refresh product and history
       await fetchProductData();
       await fetchStockHistory();
     } catch (err) {
@@ -114,7 +109,6 @@ export default function AdminProductDetailPage() {
       alert("Stock removed successfully!");
       setShowRemoveStockModal(false);
       setStockAmount("");
-      // Refresh product and history
       await fetchProductData();
       await fetchStockHistory();
     } catch (err) {
@@ -160,7 +154,6 @@ export default function AdminProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-6 py-4 md:px-12">
           <div className="flex items-center justify-between">
@@ -198,7 +191,7 @@ export default function AdminProductDetailPage() {
         </div>
       </header>
 
-      {/* Delete Confirmation Modal */}
+      {/* Modals remain the same */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -206,20 +199,13 @@ export default function AdminProductDetailPage() {
               Delete Product
             </h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete "{product.name}"? This action
-              cannot be undone.
+              Are you sure you want to delete "{product.name}"? This action cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
                 Cancel
               </Button>
-              <Button
-                className="bg-red-600 hover:bg-red-700 text-white"
-                onClick={handleDelete}
-              >
+              <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete}>
                 Delete Product
               </Button>
             </div>
@@ -227,7 +213,6 @@ export default function AdminProductDetailPage() {
         </div>
       )}
 
-      {/* Add Stock Modal */}
       {showAddStockModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -278,7 +263,6 @@ export default function AdminProductDetailPage() {
         </div>
       )}
 
-      {/* Remove Stock Modal */}
       {showRemoveStockModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -333,12 +317,9 @@ export default function AdminProductDetailPage() {
         </div>
       )}
 
-      {/* Main Content */}
       <div className="px-6 py-8 md:px-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Product Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Product Image & Basic Info */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="grid md:grid-cols-2 gap-6 p-6">
                 <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
@@ -349,59 +330,17 @@ export default function AdminProductDetailPage() {
                   />
                 </div>
                 <div>
-                  <div className="mb-4">
-                    <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
-                      {product.category.charAt(0) +
-                        product.category.slice(1).toLowerCase()}
-                    </span>
-                  </div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-6">
                     ${product.price}
                   </h2>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex items-center">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-5 h-5 ${
-                            i < product.rating
-                              ? "text-yellow-400 fill-yellow-400"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      ({product.rating}.0)
-                    </span>
-                  </div>
-                  <p className="text-gray-700 leading-relaxed mb-6">
-                    {product.description}
-                  </p>
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-gray-600">Product ID</span>
-                      <span className="font-medium text-gray-900 text-xs">
-                        {product.id}
-                      </span>
+                      <span className="font-medium text-gray-900">{product.id}</span>
                     </div>
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-gray-600">SKU</span>
-                      <span className="font-medium text-gray-900">
-                        {product.sku}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Status</span>
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded ${
-                          product.isActive
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {product.isActive ? "Active" : "Inactive"}
-                      </span>
+                      <span className="font-medium text-gray-900">{product.sku}</span>
                     </div>
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-gray-600">Created</span>
@@ -420,11 +359,8 @@ export default function AdminProductDetailPage() {
               </div>
             </div>
 
-            {/* Stock History */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Stock History
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Stock History</h3>
               {stockHistory.length > 0 ? (
                 <div className="space-y-3">
                   {stockHistory.map((entry: any, index: number) => (
@@ -463,20 +399,14 @@ export default function AdminProductDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-4">
-                  No stock history available
-                </p>
+                <p className="text-gray-500 text-center py-4">No stock history available</p>
               )}
             </div>
           </div>
 
-          {/* Right Column - Stock & Stats */}
           <div className="space-y-6">
-            {/* Current Stock */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">
-                Current Stock
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">Current Stock</h3>
               <div className="text-center py-4">
                 <div
                   className={`text-5xl font-bold mb-2 ${
@@ -511,11 +441,8 @@ export default function AdminProductDetailPage() {
               </div>
             </div>
 
-            {/* Stock Status */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Stock Status
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Stock Status</h3>
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -529,11 +456,7 @@ export default function AdminProductDetailPage() {
                           : "text-red-600"
                       }`}
                     >
-                      {product.stock > 20
-                        ? "Good"
-                        : product.stock > 10
-                        ? "Low"
-                        : "Critical"}
+                      {product.stock > 20 ? "Good" : product.stock > 10 ? "Low" : "Critical"}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
@@ -554,9 +477,7 @@ export default function AdminProductDetailPage() {
                 <div className="pt-4 border-t border-gray-100 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Stock</span>
-                    <span className="font-medium text-gray-900">
-                      {product.stock} units
-                    </span>
+                    <span className="font-medium text-gray-900">{product.stock} units</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Stock Value</span>
@@ -564,21 +485,12 @@ export default function AdminProductDetailPage() {
                       ${(product.stock * product.price).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Available</span>
-                    <span className="font-medium text-green-600">
-                      {product.stock} units
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Quick Actions
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-2">
                 <Link href={`/admin/crud-product?edit=${productId}`} className="block">
                   <Button variant="outline" className="w-full justify-start">
@@ -595,7 +507,7 @@ export default function AdminProductDetailPage() {
                 <Button
                   variant="outline"
                   className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={() => setShowDeleteConfirm(false)}
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete Product
