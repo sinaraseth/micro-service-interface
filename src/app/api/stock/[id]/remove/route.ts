@@ -12,7 +12,7 @@ export async function POST(
 
     console.log('Removing stock for product:', id, 'Quantity:', quantity);
 
-    const response = await fetch(`${API_BASE_URL}/stock/products/${id}/remove`, {
+    const response = await fetch(`${API_BASE_URL}/stock/${id}/remove`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

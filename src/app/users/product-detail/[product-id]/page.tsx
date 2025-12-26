@@ -2,12 +2,18 @@
 
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, ShoppingCart, Plus, Minus, Star, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getProductById, addToCart } from "@/hooks/mock-data"
+import { ProductCategory, addToCart } from "@/hooks/mock-data"
+import { ProductService, mapApiProductToLocal } from "@/services/api.config"
+
+type UserProduct = ReturnType<typeof mapApiProductToLocal> & {
+  rating: number
+  category: ProductCategory
+}
 
 export default function UserProductDetailPage() {
   const params = useParams()
@@ -15,16 +21,52 @@ export default function UserProductDetailPage() {
   const productId = params["product-id"] as string
 
   const [quantity, setQuantity] = useState(1)
+  const [product, setProduct] = useState<UserProduct | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const product = getProductById(productId)
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const apiProduct = await ProductService.getProductById(productId)
+        const mapped = mapApiProductToLocal(apiProduct)
+        setProduct({
+          ...mapped,
+          rating: 5,
+          category: ProductCategory.ACCESSORIES,
+        })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load product")
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  if (!product) {
+    fetchProduct()
+  }, [productId])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-600">Loading product...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h2>
-          <p className="text-gray-600 mb-6">The product you're looking for doesn't exist.</p>
+          <p className="text-gray-600 mb-6">
+            {error || "The product you're looking for doesn't exist."}
+          </p>
           <Link href="/users">
             <Button>
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -52,8 +94,7 @@ export default function UserProductDetailPage() {
         <div className="px-6 py-4 md:px-12">
           <div className="flex items-center justify-between">
             <Link href="/home" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-sm"></div>
-              <span className="text-xl font-semibold text-primary">Luxe Store</span>
+              <img src="/logo.jpg" alt="Luxe Store" className="h-11 w-auto" />
             </Link>
             <Link href="/users/cart">
               <Button variant="outline">

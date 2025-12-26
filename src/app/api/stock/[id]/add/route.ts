@@ -12,7 +12,7 @@ export async function POST(
 
     console.log('Adding stock for product:', id, 'Quantity:', quantity);
 
-    const response = await fetch(`${API_BASE_URL}/stock/products/${id}/add`, {
+    const response = await fetch(`${API_BASE_URL}/stock/${id}/add`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -128,6 +128,35 @@ export class ProductService {
 // Inventory Service (for stock management)
 export class InventoryService {
   private static baseUrl = `${API_BASE_URL}/stock`;
+  private static inventoryUrl = `${API_BASE_URL}/inventory`;
+
+  static async getInventory(): Promise<any> {
+    const response = await fetch(this.inventoryUrl, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch inventory");
+    }
+
+    return response.json();
+  }
+
+  static async createInventory(productId: string, quantity: number): Promise<any> {
+    const response = await fetch(this.baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_id: productId, quantity }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create inventory");
+    }
+
+    return response.json();
+  }
 
   static async addStock(productId: string, quantity: number): Promise<any> {
     const response = await fetch(`${this.baseUrl}/${productId}/add`, {

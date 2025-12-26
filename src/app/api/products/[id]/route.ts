@@ -10,7 +10,7 @@ export async function GET(
     const { id } = await params;
     console.log('Fetching product with ID:', id);
 
-    const response = await fetch(`${API_BASE_URL}/stock/products/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/products/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -56,7 +56,7 @@ export async function PUT(
       image: productData.image ? `${productData.image.substring(0, 50)}...` : undefined
     });
 
-    const response = await fetch(`${API_BASE_URL}/stock/products/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/products/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ export async function DELETE(
     const { id } = await params;
     console.log('Deleting product:', id);
 
-    const response = await fetch(`${API_BASE_URL}/stock/products/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/products/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

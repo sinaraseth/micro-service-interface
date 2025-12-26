@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, X, Loader2, Upload, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ProductService } from "@/services/api.config";
+import { InventoryService, ProductService } from "@/services/api.config";
 
 function CrudProductForm() {
   const router = useRouter();
@@ -78,22 +78,48 @@ function CrudProductForm() {
         return;
       }
 
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, image: "Image size should not exceed 5MB" }));
+      // Validate file size (max 1MB)
+      if (file.size > 1 * 1024 * 1024) {
+        setErrors((prev) => ({ ...prev, image: "Image size should not exceed 1MB" }));
         return;
       }
 
       setErrors((prev) => ({ ...prev, image: "" }));
 
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setImagePreview(base64String);
-        setFormData((prev) => ({ ...prev, image: base64String }));
+      const imageUrl = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = () => {
+        const maxDimension = 800;
+        const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
+        const targetWidth = Math.round(img.width * scale);
+        const targetHeight = Math.round(img.height * scale);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          URL.revokeObjectURL(imageUrl);
+          setErrors((prev) => ({ ...prev, image: "Failed to process image" }));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+        const optimizedDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+
+        setImagePreview(optimizedDataUrl);
+        setFormData((prev) => ({ ...prev, image: optimizedDataUrl }));
+        URL.revokeObjectURL(imageUrl);
       };
-      reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        URL.revokeObjectURL(imageUrl);
+        setErrors((prev) => ({ ...prev, image: "Failed to load image" }));
+      };
+
+      img.src = imageUrl;
     }
   };
 
@@ -152,7 +178,19 @@ function CrudProductForm() {
           image: createData.image ? `${createData.image.substring(0, 50)}...` : null
         });
 
-        await ProductService.createProduct(createData);
+        const createdProduct = await ProductService.createProduct(createData);
+
+        if (createdProduct?.id !== undefined && createdProduct?.id !== null) {
+          try {
+            await InventoryService.createInventory(
+              createdProduct.id.toString(),
+              parseInt(formData.stock.toString())
+            );
+          } catch (inventoryError) {
+            console.error("Error creating inventory:", inventoryError);
+            alert("Product created, but failed to create inventory.");
+          }
+        }
         alert("Product created successfully!");
       }
 
@@ -255,7 +293,7 @@ function CrudProductForm() {
                       </Button>
                     </label>
                     <p className="text-xs text-gray-500 mt-2">
-                      PNG, JPG, JPEG up to 5MB (will be converted to base64)
+                      PNG, JPG, JPEG up to 1MB (resized and compressed)
                     </p>
                     {errors.image && (
                       <p className="text-sm text-red-600 mt-1">{errors.image}</p>

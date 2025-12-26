@@ -43,13 +43,13 @@ export async function POST(request: NextRequest) {
   try {
     const productData = await request.json();
 
-    console.log('Creating product at:', `${API_BASE_URL}/stock/products`);
+    console.log('Creating product at:', `${API_BASE_URL}/products`);
     console.log('Product data (image truncated):', {
       ...productData,
       image: productData.image ? `${productData.image.substring(0, 50)}...` : null
     });
 
-    const response = await fetch(`${API_BASE_URL}/stock/products`, {
+    const response = await fetch(`${API_BASE_URL}/products`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

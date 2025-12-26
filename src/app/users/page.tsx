@@ -2,36 +2,69 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ShoppingCart, Filter, Star } from "lucide-react";
+import { Search, ShoppingCart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  mockProducts,
-  ProductCategory,
-  addToCart,
-  getCartItemCount,
-} from "@/hooks/mock-data";
+import { ProductCategory, addToCart, getCartItemCount } from "@/hooks/mock-data";
+import { ProductService, mapApiProductToLocal } from "@/services/api.config";
+
+type UserProduct = ReturnType<typeof mapApiProductToLocal> & {
+  rating: number;
+  category: ProductCategory;
+};
 
 export default function UserProductsPage() {
-  const [selectedCategory, setSelectedCategory] = useState<
-    ProductCategory | "ALL"
-  >("ALL");
+  const [products, setProducts] = useState<UserProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [cartCount, setCartCount] = useState(getCartItemCount());
 
-  // Filter products
-  const filteredProducts = mockProducts.filter((product) => {
-    const matchesCategory =
-      selectedCategory === "ALL" || product.category === selectedCategory;
-    const matchesSearch =
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const allProducts: UserProduct[] = [];
+      let page = 1;
+      let lastPage = 1;
+
+      do {
+        const response = await ProductService.getProducts(page);
+        allProducts.push(
+          ...response.data.map((product) => ({
+            ...mapApiProductToLocal(product),
+            rating: 5,
+            category: ProductCategory.ACCESSORIES,
+          }))
+        );
+        lastPage = response.last_page;
+        page += 1;
+      } while (page <= lastPage);
+
+      setProducts(allProducts);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const matchesSearch =
       searchQuery === "" ||
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch && product.stock > 0; // Only show in-stock items
-  });
+      return matchesSearch && product.stock > 0;
+    });
+  }, [products, searchQuery]);
 
-  const handleAddToCart = (product: (typeof mockProducts)[0]) => {
+  const handleAddToCart = (product: UserProduct) => {
     addToCart(product, 1);
     setCartCount(getCartItemCount());
     alert(`${product.name} added to cart!`);
@@ -90,39 +123,13 @@ export default function UserProductsPage() {
         </div>
       </header>
 
-      {/* Category Filter */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 md:px-12">
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <Filter className="w-5 h-5 text-gray-500 flex-shrink-0" />
-          <button
-            onClick={() => setSelectedCategory("ALL")}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-              selectedCategory === "ALL"
-                ? "bg-primary text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            All Products
-          </button>
-          {Object.values(ProductCategory).map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === category
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {category.charAt(0) + category.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Products Grid */}
       <div className="px-6 py-8 md:px-12">
-        {filteredProducts.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-16 text-gray-600">Loading products...</div>
+        ) : error ? (
+          <div className="text-center py-16 text-red-600">{error}</div>
+        ) : filteredProducts.length === 0 ? (
           <div className="text-center py-16">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               No products found
@@ -177,10 +184,6 @@ export default function UserProductsPage() {
                           {product.name}
                         </h3>
                       </Link>
-                      <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
-                        {product.category.charAt(0) +
-                          product.category.slice(1).toLowerCase()}
-                      </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                       {product.description}
