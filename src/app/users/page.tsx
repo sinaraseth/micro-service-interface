@@ -4,13 +4,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ShoppingCart, Star } from "lucide-react";
+import { Search, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductCategory, addToCart, getCartItemCount } from "@/hooks/mock-data";
 import { ProductService, mapApiProductToLocal } from "@/services/api.config";
 
 type UserProduct = ReturnType<typeof mapApiProductToLocal> & {
-  rating: number;
   category: ProductCategory;
 };
 
@@ -34,7 +33,6 @@ export default function UserProductsPage() {
         allProducts.push(
           ...response.data.map((product) => ({
             ...mapApiProductToLocal(product),
-            rating: 5,
             category: ProductCategory.ACCESSORIES,
           }))
         );
@@ -188,21 +186,6 @@ export default function UserProductsPage() {
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                       {product.description}
                     </p>
-                    <div className="flex items-center gap-1 mb-3">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < product.rating
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                      <span className="text-sm text-gray-600 ml-1">
-                        ({product.rating})
-                      </span>
-                    </div>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-gray-900">
                         ${product.price}

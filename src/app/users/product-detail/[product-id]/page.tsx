@@ -5,13 +5,12 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, ShoppingCart, Plus, Minus, Star, Package } from "lucide-react"
+import { ArrowLeft, ShoppingCart, Plus, Minus, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProductCategory, addToCart } from "@/hooks/mock-data"
 import { ProductService, mapApiProductToLocal } from "@/services/api.config"
 
 type UserProduct = ReturnType<typeof mapApiProductToLocal> & {
-  rating: number
   category: ProductCategory
 }
 
@@ -34,7 +33,6 @@ export default function UserProductDetailPage() {
         const mapped = mapApiProductToLocal(apiProduct)
         setProduct({
           ...mapped,
-          rating: 5,
           category: ProductCategory.ACCESSORIES,
         })
       } catch (err) {
@@ -135,18 +133,6 @@ export default function UserProductDetailPage() {
 
               <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
 
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 ${i < product.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-600">({product.rating} stars)</span>
-              </div>
-
               <p className="text-gray-600 mb-6 leading-relaxed">{product.description}</p>
 
               <div className="mb-6">
@@ -231,10 +217,6 @@ export default function UserProductDetailPage() {
                     <span className="font-medium">
                       {product.category.charAt(0) + product.category.slice(1).toLowerCase()}
                     </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Rating:</span>
-                    <span className="font-medium">{product.rating} / 5 stars</span>
                   </div>
                 </div>
               </div>

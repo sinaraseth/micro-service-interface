@@ -4,7 +4,7 @@
 
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { CheckCircle, Package, Clock, Truck, Star } from "lucide-react"
+import { CheckCircle, Package, Clock, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getOrderById, OrderStatus } from "@/hooks/mock-data"
 

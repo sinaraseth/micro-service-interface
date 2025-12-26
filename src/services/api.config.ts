@@ -209,7 +209,23 @@ export class OrderService {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to create order");
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || "Failed to create order");
+    }
+
+    return response.json();
+  }
+
+  static async getOrderById(orderId: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/${orderId}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || "Failed to fetch order");
     }
 
     return response.json();

@@ -1,15 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingCart, Star } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Snowfall from "react-snowfall";
 import { useEffect, useMemo, useState } from "react";
 import { ProductService, mapApiProductToLocal } from "@/services/api.config";
 
-type HomeProduct = ReturnType<typeof mapApiProductToLocal> & {
-  rating: number;
-};
+type HomeProduct = ReturnType<typeof mapApiProductToLocal>;
 
 export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -44,7 +42,6 @@ export default function Home() {
           allProducts.push(
             ...response.data.map((product) => ({
               ...mapApiProductToLocal(product),
-              rating: 5,
             }))
           );
           lastPage = response.last_page;
@@ -196,11 +193,6 @@ export default function Home() {
                   <h3 className="text-lg font-semibold text-primary mb-2">
                     {product.name}
                   </h3>
-                  <div className="flex items-center gap-1 mb-4">
-                    {Array.from({ length: product.rating }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-accent text-accent" />
-                    ))}
-                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-semibold text-primary">
                       ${product.price}

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, CreditCard, User, Mail, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { mockCart, getCartTotal, clearCart, mockOrders, OrderStatus } from "@/hooks/mock-data"
-import { InventoryService } from "@/services/api.config"
+import { InventoryService, OrderService } from "@/services/api.config"
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -59,32 +59,57 @@ export default function CheckoutPage() {
 
     try {
       setProcessingOrder(true)
-      await Promise.all(
-        mockCart.map((item) => InventoryService.deductStock(item.productId, item.quantity))
-      )
 
-      const newOrderId = `ORD-${String(mockOrders.length + 1).padStart(3, "0")}`
-      const newOrder = {
-        id: newOrderId,
-        customerName: formData.name,
-        customerEmail: formData.email,
-        orderDate: new Date().toISOString().split("T")[0],
-        status: OrderStatus.PENDING,
-        total: total,
+      const orderPayload = {
+        fullName: formData.name,
+        email: formData.email,
+        address: formData.address,
+        city: formData.city,
+        zipCode: formData.zipCode,
         items: mockCart.map((item) => ({
           productId: item.productId,
-          productName: item.productName,
           quantity: item.quantity,
           price: item.price,
         })),
       }
 
+      const createdOrder = await OrderService.createOrder(orderPayload)
+
+      await Promise.all(
+        mockCart.map((item) => InventoryService.deductStock(item.productId, item.quantity))
+      )
+
+      const newOrder = {
+        id: createdOrder.id,
+        customerName: createdOrder.fullName || formData.name,
+        customerEmail: createdOrder.email || formData.email,
+        orderDate: new Date(createdOrder.createdAt || Date.now()).toISOString().split("T")[0],
+        status: OrderStatus.PENDING,
+        total: createdOrder.total ?? total,
+        items: createdOrder.items
+          ? createdOrder.items.map((item: any) => {
+              const cartMatch = mockCart.find((cartItem) => cartItem.productId === item.productId)
+              return {
+                productId: item.productId,
+                productName: cartMatch?.productName || `Product ${item.productId}`,
+                quantity: item.quantity,
+                price: item.price,
+              }
+            })
+          : mockCart.map((item) => ({
+              productId: item.productId,
+              productName: item.productName,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+      }
+
       mockOrders.push(newOrder)
       clearCart()
-      router.push(`/users/orders/${newOrderId}`)
+      router.push(`/users/orders/${createdOrder.id}`)
     } catch (err) {
-      console.error("Failed to update stock:", err)
-      alert("Failed to update stock. Please try again.")
+      console.error("Failed to place order:", err)
+      alert("Failed to place order. Please try again.")
     } finally {
       setProcessingOrder(false)
     }
