@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, X, Loader2, Upload, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { InventoryService, ProductService } from "@/services/api.config";
+import { ProductService } from "@/services/api.config";
 
 function CrudProductForm() {
   const router = useRouter();
@@ -180,17 +180,7 @@ function CrudProductForm() {
 
         const createdProduct = await ProductService.createProduct(createData);
 
-        if (createdProduct?.id !== undefined && createdProduct?.id !== null) {
-          try {
-            await InventoryService.createInventory(
-              createdProduct.id.toString(),
-              parseInt(formData.stock.toString())
-            );
-          } catch (inventoryError) {
-            console.error("Error creating inventory:", inventoryError);
-            alert("Product created, but failed to create inventory.");
-          }
-        }
+        // Inventory is created by the stock/products endpoint.
         alert("Product created successfully!");
       }
 

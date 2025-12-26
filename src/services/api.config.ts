@@ -77,8 +77,9 @@ export class ProductService {
 
   static async createProduct(data: FormData | any): Promise<ApiProduct> {
     const isFormData = data instanceof FormData;
-    
-    const response = await fetch(this.baseUrl, {
+    const stockProductsUrl = `${API_BASE_URL}/stock/products`;
+
+    const response = await fetch(stockProductsUrl, {
       method: "POST",
       headers: isFormData ? {} : { "Content-Type": "application/json" },
       body: isFormData ? data : JSON.stringify(data),
@@ -144,11 +145,22 @@ export class InventoryService {
     return response.json();
   }
 
-  static async createInventory(productId: string, quantity: number): Promise<any> {
-    const response = await fetch(this.baseUrl, {
+  static async createInventory(
+    productId: string,
+    quantity: number,
+    details?: { name?: string; sku?: string }
+  ): Promise<any> {
+    const payload = {
+      product_id: productId,
+      quantity,
+      ...(details?.name ? { name: details.name } : {}),
+      ...(details?.sku ? { sku: details.sku } : {}),
+    };
+
+    const response = await fetch(`${this.baseUrl}/products`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_id: productId, quantity }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

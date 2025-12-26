@@ -57,21 +57,33 @@ export default function CheckoutPage() {
       return
     }
 
-    const deductStockForItem = async (item: typeof mockCart[number]) => {
-      try {
-        await InventoryService.deductStock(item.productId, item.quantity)
-        return
-      } catch (err) {
-        if (!item.sku) {
-          throw err
-        }
-      }
-
-      await InventoryService.deductStock(item.sku, item.quantity)
-    }
-
     try {
       setProcessingOrder(true)
+
+      const inventoryResponse = await InventoryService.getInventory()
+      const inventoryItems = Array.isArray(inventoryResponse)
+        ? inventoryResponse
+        : inventoryResponse?.data || inventoryResponse?.inventory || inventoryResponse?.items || []
+
+      const inventoryIndex = new Map<string, string>()
+      for (const item of inventoryItems) {
+        const stockKey = item.product_id ?? item.productId ?? item.id ?? item.sku
+        if (!stockKey) continue
+
+        const key = stockKey.toString()
+        inventoryIndex.set(key, key)
+        if (item.sku) inventoryIndex.set(item.sku.toString(), key)
+        if (item.productId) inventoryIndex.set(item.productId.toString(), key)
+      }
+
+      const deductStockForItem = async (item: typeof mockCart[number]) => {
+        const stockKey =
+          inventoryIndex.get(item.productId) ||
+          (item.sku ? inventoryIndex.get(item.sku) : undefined) ||
+          item.productId
+
+        await InventoryService.deductStock(stockKey, item.quantity)
+      }
 
       const orderPayload = {
         fullName: formData.name,

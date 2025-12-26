@@ -13,6 +13,7 @@ type InventoryItem = {
   price: number;
   image: string;
   stock: number;
+  stockKey: string;
 };
 
 const normalizeInventory = (raw: any): InventoryItem[] => {
@@ -22,7 +23,8 @@ const normalizeInventory = (raw: any): InventoryItem[] => {
 
   return list.map((item: any, index: number) => {
     const product = item.product || item.product_detail || item.productInfo || {};
-    const idValue = product.id ?? item.product_id ?? item.id ?? index;
+    const idValue = item.product_id ?? item.productId ?? item.id ?? index;
+    const stockKey = item.product_id ?? item.productId ?? item.sku ?? item.id ?? index;
 
     return {
       id: idValue.toString(),
@@ -31,6 +33,7 @@ const normalizeInventory = (raw: any): InventoryItem[] => {
       price: Number(product.price ?? item.price ?? 0),
       image: product.image || item.image || "/placeholder.svg",
       stock: Number(item.stock ?? item.quantity ?? item.qty ?? item.available ?? 0),
+      stockKey: stockKey.toString(),
     };
   });
 };
@@ -127,7 +130,7 @@ export default function InventoryStockPage() {
 
     try {
       setProcessingStock(true);
-      await InventoryService.addStock(selectedProduct.id, parseInt(stockAmount));
+      await InventoryService.addStock(selectedProduct.stockKey, parseInt(stockAmount));
       setShowAddStockModal(false);
       setSelectedProduct(null);
       setStockAmount("");
@@ -153,7 +156,7 @@ export default function InventoryStockPage() {
 
     try {
       setProcessingStock(true);
-      await InventoryService.deductStock(selectedProduct.id, parseInt(stockAmount));
+      await InventoryService.deductStock(selectedProduct.stockKey, parseInt(stockAmount));
       setShowRemoveStockModal(false);
       setSelectedProduct(null);
       setStockAmount("");
