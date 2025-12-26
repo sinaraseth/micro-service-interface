@@ -57,6 +57,19 @@ export default function CheckoutPage() {
       return
     }
 
+    const deductStockForItem = async (item: typeof mockCart[number]) => {
+      try {
+        await InventoryService.deductStock(item.productId, item.quantity)
+        return
+      } catch (err) {
+        if (!item.sku) {
+          throw err
+        }
+      }
+
+      await InventoryService.deductStock(item.sku, item.quantity)
+    }
+
     try {
       setProcessingOrder(true)
 
@@ -75,9 +88,7 @@ export default function CheckoutPage() {
 
       const createdOrder = await OrderService.createOrder(orderPayload)
 
-      await Promise.all(
-        mockCart.map((item) => InventoryService.deductStock(item.productId, item.quantity))
-      )
+      await Promise.all(mockCart.map((item) => deductStockForItem(item)))
 
       const newOrder = {
         id: createdOrder.id,

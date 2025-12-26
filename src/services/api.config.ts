@@ -201,6 +201,21 @@ export class InventoryService {
 export class OrderService {
   private static baseUrl = `${API_BASE_URL}/orders`;
 
+  static async getOrders(): Promise<any> {
+    const response = await fetch(this.baseUrl, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || "Failed to fetch orders");
+    }
+
+    return response.json();
+  }
+
   static async createOrder(orderData: any): Promise<any> {
     const response = await fetch(this.baseUrl, {
       method: "POST",

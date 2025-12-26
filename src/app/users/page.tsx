@@ -11,6 +11,7 @@ import { ProductService, mapApiProductToLocal } from "@/services/api.config";
 
 type UserProduct = ReturnType<typeof mapApiProductToLocal> & {
   category: ProductCategory;
+  rating: number;
 };
 
 export default function UserProductsPage() {
@@ -34,6 +35,7 @@ export default function UserProductsPage() {
           ...response.data.map((product) => ({
             ...mapApiProductToLocal(product),
             category: ProductCategory.ACCESSORIES,
+            rating: 0,
           }))
         );
         lastPage = response.last_page;

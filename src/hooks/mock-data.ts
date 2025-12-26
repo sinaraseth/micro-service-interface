@@ -282,6 +282,7 @@ export interface CartItem {
   price: number
   quantity: number
   image: string
+  sku?: string
 }
 
 // Mock Cart (in real app, this would be in localStorage or context)
@@ -293,6 +294,9 @@ export const addToCart = (product: Product, quantity: number = 1) => {
   
   if (existingItem) {
     existingItem.quantity += quantity
+    if (!existingItem.sku && product.sku) {
+      existingItem.sku = product.sku
+    }
   } else {
     mockCart.push({
       productId: product.id,
@@ -300,6 +304,7 @@ export const addToCart = (product: Product, quantity: number = 1) => {
       price: product.price,
       quantity,
       image: product.image,
+      sku: product.sku,
     })
   }
 }

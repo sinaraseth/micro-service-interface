@@ -12,6 +12,7 @@ import { ProductService, mapApiProductToLocal } from "@/services/api.config"
 
 type UserProduct = ReturnType<typeof mapApiProductToLocal> & {
   category: ProductCategory
+  rating: number
 }
 
 export default function UserProductDetailPage() {
@@ -34,6 +35,7 @@ export default function UserProductDetailPage() {
         setProduct({
           ...mapped,
           category: ProductCategory.ACCESSORIES,
+          rating: 0,
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load product")

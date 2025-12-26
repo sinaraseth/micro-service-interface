@@ -13,7 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ProductService, InventoryService, mapApiProductToLocal } from "@/services/api.config";
+import { ProductService, InventoryService, OrderService, mapApiProductToLocal } from "@/services/api.config";
 
 export default function AdminProductDetailPage() {
   const params = useParams();
@@ -22,6 +22,7 @@ export default function AdminProductDetailPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [stockHistory, setStockHistory] = useState<any[]>([]);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -33,6 +34,7 @@ export default function AdminProductDetailPage() {
   useEffect(() => {
     fetchProductData();
     fetchStockHistory();
+    fetchOrderHistory();
   }, [productId]);
 
   const fetchProductData = async () => {
@@ -56,6 +58,36 @@ export default function AdminProductDetailPage() {
       setStockHistory(history.data || []);
     } catch (err) {
       console.error("Error fetching stock history:", err);
+    }
+  };
+
+  const fetchOrderHistory = async () => {
+    try {
+      const ordersResponse = await OrderService.getOrders();
+      const orders = Array.isArray(ordersResponse)
+        ? ordersResponse
+        : ordersResponse?.data || ordersResponse?.orders || [];
+
+      const matched = orders.flatMap((order: any) => {
+        const items = order.items || [];
+        return items
+          .filter((item: any) => {
+            const itemProductId =
+              item.productId ?? item.product_id ?? item.productID ?? item.productId;
+            return itemProductId?.toString() === productId;
+          })
+          .map((item: any) => ({
+            orderId: order.id,
+            quantity: item.quantity,
+            price: item.price,
+            createdAt: order.createdAt,
+            customer: order.fullName || order.email || "Guest",
+          }));
+      });
+
+      setOrderHistory(matched);
+    } catch (err) {
+      console.error("Error fetching order history:", err);
     }
   };
 
@@ -400,6 +432,41 @@ export default function AdminProductDetailPage() {
                 </div>
               ) : (
                 <p className="text-gray-500 text-center py-4">No stock history available</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Order History</h3>
+              {orderHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {orderHistory.map((entry: any, index: number) => (
+                    <div
+                      key={`${entry.orderId}-${index}`}
+                      className="flex items-start gap-4 pb-3 border-b border-gray-100 last:border-0"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-gray-900">
+                            {entry.quantity} units
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {entry.createdAt
+                              ? new Date(entry.createdAt).toLocaleDateString()
+                              : "--"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          Order {entry.orderId} · {entry.customer}
+                        </p>
+                      </div>
+                      <div className="text-sm font-medium text-gray-900">
+                        ${(Number(entry.price) * Number(entry.quantity)).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No order history available</p>
               )}
             </div>
           </div>
