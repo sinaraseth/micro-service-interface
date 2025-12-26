@@ -4,34 +4,27 @@ const API_BASE_URL = 'https://devops-api-gateway-production.up.railway.app/api';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const body = await request.json();
-    
-    console.log('Adding stock for product:', params.id, body);
+    const { id } = await params;
+    const { quantity } = await request.json();
 
-    const response = await fetch(`${API_BASE_URL}/stock/${params.id}/add`, {
+    console.log('Adding stock for product:', id, 'Quantity:', quantity);
+
+    const response = await fetch(`${API_BASE_URL}/stock/products/${id}/add`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ quantity }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error adding stock:', errorText);
-      
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { message: errorText || 'Failed to add stock' };
-      }
-
       return NextResponse.json(
-        { error: errorData.message || 'Failed to add stock' },
+        { error: 'Failed to add stock' },
         { status: response.status }
       );
     }
