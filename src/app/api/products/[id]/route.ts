@@ -4,12 +4,13 @@ const API_BASE_URL = 'https://devops-api-gateway-production.up.railway.app/api';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('Fetching product with ID:', params.id);
+    const { id } = await params;
+    console.log('Fetching product with ID:', id);
 
-    const response = await fetch(`${API_BASE_URL}/stock/products/${params.id}`, {
+    const response = await fetch(`${API_BASE_URL}/stock/products/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -43,18 +44,19 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const productData = await request.json();
 
-    console.log('Updating product:', params.id);
+    console.log('Updating product:', id);
     console.log('Product data (image truncated):', {
       ...productData,
       image: productData.image ? `${productData.image.substring(0, 50)}...` : undefined
     });
 
-    const response = await fetch(`${API_BASE_URL}/stock/products/${params.id}`, {
+    const response = await fetch(`${API_BASE_URL}/stock/products/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -92,12 +94,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('Deleting product:', params.id);
+    const { id } = await params;
+    console.log('Deleting product:', id);
 
-    const response = await fetch(`${API_BASE_URL}/stock/products/${params.id}`, {
+    const response = await fetch(`${API_BASE_URL}/stock/products/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
