@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, CreditCard, User, Mail, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { mockCart, getCartTotal, clearCart, mockOrders, OrderStatus } from "@/hooks/mock-data"
+import { InventoryService } from "@/services/api.config"
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -20,6 +21,7 @@ export default function CheckoutPage() {
     cardNumber: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [processingOrder, setProcessingOrder] = useState(false)
 
   const subtotal = getCartTotal()
   const tax = subtotal * 0.1
@@ -47,7 +49,7 @@ export default function CheckoutPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!validateForm()) return
 
     if (mockCart.length === 0) {
@@ -55,28 +57,37 @@ export default function CheckoutPage() {
       return
     }
 
-    // Create new order
-    const newOrderId = `ORD-${String(mockOrders.length + 1).padStart(3, "0")}`
-    const newOrder = {
-      id: newOrderId,
-      customerName: formData.name,
-      customerEmail: formData.email,
-      orderDate: new Date().toISOString().split("T")[0],
-      status: OrderStatus.PENDING,
-      total: total,
-      items: mockCart.map((item) => ({
-        productId: item.productId,
-        productName: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-      })),
+    try {
+      setProcessingOrder(true)
+      await Promise.all(
+        mockCart.map((item) => InventoryService.deductStock(item.productId, item.quantity))
+      )
+
+      const newOrderId = `ORD-${String(mockOrders.length + 1).padStart(3, "0")}`
+      const newOrder = {
+        id: newOrderId,
+        customerName: formData.name,
+        customerEmail: formData.email,
+        orderDate: new Date().toISOString().split("T")[0],
+        status: OrderStatus.PENDING,
+        total: total,
+        items: mockCart.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      }
+
+      mockOrders.push(newOrder)
+      clearCart()
+      router.push(`/users/orders/${newOrderId}`)
+    } catch (err) {
+      console.error("Failed to update stock:", err)
+      alert("Failed to update stock. Please try again.")
+    } finally {
+      setProcessingOrder(false)
     }
-
-    mockOrders.push(newOrder)
-    clearCart()
-
-    // Redirect to order confirmation
-    router.push(`/users/orders/${newOrderId}`)
   }
 
   if (mockCart.length === 0) {
@@ -279,8 +290,9 @@ export default function CheckoutPage() {
                 <Button
                   className="w-full bg-primary hover:bg-primary-dark text-white text-lg py-6"
                   onClick={handlePlaceOrder}
+                  disabled={processingOrder}
                 >
-                  Place Order
+                  {processingOrder ? "Processing..." : "Place Order"}
                 </Button>
               </div>
             </div>

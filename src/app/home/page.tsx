@@ -4,71 +4,24 @@ import Link from "next/link";
 import { ShoppingCart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Snowfall from "react-snowfall";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ProductService, mapApiProductToLocal } from "@/services/api.config";
 
-const products = [
-  {
-    id: 1,
-    name: "Premium Cushion",
-    price: "$89",
-    image: "/images.jpg",
-    rating: 5,
-  },
-  {
-    id: 2,
-    name: "Wooden Side Table",
-    price: "$249",
-    image: "/images (1).jpg",
-    rating: 5,
-  },
-  {
-    id: 3,
-    name: "Designer Rug",
-    price: "$399",
-    image: "/images (2).jpg",
-    rating: 5,
-  },
-  {
-    id: 4,
-    name: "Modern Lamp",
-    price: "$159",
-    image: "/images.jpg",
-    rating: 5,
-  },
-  {
-    id: 5,
-    name: "Ceramic Vase",
-    price: "$129",
-    image: "/images (1).jpg",
-    rating: 5,
-  },
-  {
-    id: 6,
-    name: "Accent Chair",
-    price: "$599",
-    image: "/images (2).jpg",
-    rating: 5,
-  },
-  {
-    id: 7,
-    name: "Wall Art",
-    price: "$299",
-    image: "/images.jpg",
-    rating: 5,
-  },
-  {
-    id: 8,
-    name: "Coffee Table",
-    price: "$449",
-    image: "/images (1).jpg",
-    rating: 5,
-  },
-];
-
-const heroImages = ["/images.jpg", "/images (1).jpg", "/images (2).jpg"];
+type HomeProduct = ReturnType<typeof mapApiProductToLocal> & {
+  rating: number;
+};
 
 export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [products, setProducts] = useState<HomeProduct[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  const heroImages = useMemo(() => {
+    const images = products
+      .map((product) => product.image)
+      .filter((image) => image && image !== "/placeholder.svg");
+    return images.length > 0 ? images.slice(0, 3) : ["/placeholder.svg"];
+  }, [products]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -76,6 +29,38 @@ export default function Home() {
     }, 3000); // Change image every 3 seconds
 
     return () => clearInterval(interval);
+  }, [heroImages.length]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoadingProducts(true);
+        const allProducts: HomeProduct[] = [];
+        let page = 1;
+        let lastPage = 1;
+
+        do {
+          const response = await ProductService.getProducts(page);
+          allProducts.push(
+            ...response.data.map((product) => ({
+              ...mapApiProductToLocal(product),
+              rating: 5,
+            }))
+          );
+          lastPage = response.last_page;
+          page += 1;
+        } while (page <= lastPage);
+
+        setProducts(allProducts);
+      } catch (error) {
+        console.error("Failed to load products:", error);
+        setProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   return (
@@ -185,45 +170,55 @@ export default function Home() {
           Handpicked items for the discerning homeowner
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
-            >
-              <div className="aspect-[5/3] bg-primary-lighter overflow-hidden">
-                <img
-                  src={product.image || "/placeholder.svg"}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-primary mb-2">
-                  {product.name}
-                </h3>
-                <div className="flex items-center gap-1 mb-4">
-                  {Array.from({ length: product.rating }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-accent text-accent" />
-                  ))}
+        {loadingProducts ? (
+          <div className="text-center text-primary-dark/70">
+            Loading products...
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center text-primary-dark/70">
+            No products available.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {products.map((product) => (
+              <div
+                key={product.id}
+                className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
+              >
+                <div className="aspect-[5/3] bg-primary-lighter overflow-hidden">
+                  <img
+                    src={product.image || "/placeholder.svg"}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-semibold text-primary">
-                    {product.price}
-                  </span>
-                  <Link href="/users">
-                    <Button
-                      size="sm"
-                      className="bg-primary hover:bg-primary-dark text-primary-foreground"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                    </Button>
-                  </Link>
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-primary mb-2">
+                    {product.name}
+                  </h3>
+                  <div className="flex items-center gap-1 mb-4">
+                    {Array.from({ length: product.rating }).map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-accent text-accent" />
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-semibold text-primary">
+                      ${product.price}
+                    </span>
+                    <Link href="/users">
+                      <Button
+                        size="sm"
+                        className="bg-primary hover:bg-primary-dark text-primary-foreground"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Newsletter Section */}
